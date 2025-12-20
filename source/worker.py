@@ -7,6 +7,7 @@ class Worker:
     self.morale = 100
     self.base_efficiency = 1
     self.payroll = random.randint(1,999)
+    self.uniform_purchased = False
     Worker.registry.append(self)
 
   def generateName(self):
