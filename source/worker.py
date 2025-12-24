@@ -22,7 +22,6 @@ class Worker:
             "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez",
             "Lopez", "Gonzalez", "Wilson", "Anderson"
         ]
-        job_titles = ["worker"]
         if random.choice([True, False]):
             first = random.choice(male_first)
             gender = "Male"
