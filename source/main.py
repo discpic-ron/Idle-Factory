@@ -155,7 +155,7 @@ def buy_upgrade(upgrade):
     else:
         print("Not enough money or already purchased!")
 
-def handle_card_click(item, card_rect,):
+def handle_card_click(item, card_rect):
     global event, state
     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         if card_rect.collidepoint(event.pos):
@@ -194,7 +194,7 @@ Hardware("Workbench", "Allows crafting", cost=200)
 upgrade_player_speed = Upgrade("Move faster", "Player moves faster", cost=50, affect_player=True, effect_value=0.2)
 for _ in range(5):
     Worker()
-player = Player(0, 0, player_sprite)
+player = Player()
 player.money = 500
 
 while running:
