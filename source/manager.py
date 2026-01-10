@@ -20,11 +20,24 @@ class companyManager:
       "cloth": 0,
       "thread": 0,
     }
-    self.workers = {}
+    self.workers = []
     self.total_employees = 0
     self.production_multiplier = 1
     self.total_lifetime_money = 0
-  
+    
+  def hireEmployee(self):
+    """Add a worker to the company.""" 
+    self.workers.append(Worker)
+    self.total_employees += 1
+    
+  def fireEmployee(self):
+    """Remove a worker by name.""" 
+    for w in self.workers: 
+      if w.showStats["name"] == worker_name:
+        self.workers.remove(w) 
+        self.total_employees -= 1
+        return
+    
   def manage_employee_costs(self,player):
     total_payroll = sum(worker.payroll for worker in self.workers)  # Calculate total payroll
     player.money -= total_payroll                                     # Deduct employee costs
@@ -76,3 +89,4 @@ class companyManager:
         "cloth": 0,
         "thread": 0,
       }
+      self.workers = []
