@@ -2,14 +2,8 @@ import pygame
 from manager import companyManager
 from inventory import Inventory
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, x, y, player_sprite):
-        super().__init__()
-        self.image = player_sprite
-        self.rect = self.image.get_rect(topleft=(x*50, y*50))
-        self.path = []
-        self.speed = 2.0
-        self.selected = False
+class Player:
+    def __init__(self):
         self.money = 0
         self.unlocked_upgrades = {}
         self.inventory = Inventory()
@@ -48,24 +42,3 @@ class Player(pygame.sprite.Sprite):
       manager_instance.resources[resource] = manager_instance.resources.get(resource, 0) + amount
       print(f"Player gained {amount} of {resource}. Total: {manager_instance.resources[resource]}")
       
-    def set_path(self, path):
-        self.path = path
-
-    def update(self):
-      if self.path:
-        tx, ty = self.path[0]
-        target_px, target_py = tx*50, ty*50
-
-        if self.rect.x < target_px: self.rect.x += self.speed
-        elif self.rect.x > target_px: self.rect.x -= self.speed
-        if self.rect.y < target_py: self.rect.y += self.speed
-        elif self.rect.y > target_py: self.rect.y -= self.speed
-
-        if self.rect.x == target_px and self.rect.y == target_py:
-          self.path.pop(0)
-
-    def draw(self, surface):
-        surface.blit(self.image, self.rect)
-        # Draw selection outline if selected
-        if self.selected:
-            pygame.draw.rect(surface, (0,255,0), self.rect, 3)
