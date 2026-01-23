@@ -20,15 +20,15 @@ class Random_event:
             self.market_crash()
 
     def shortage(self):
-        print("❌ VUCK: A shortage occurred!")
+        print("A shortage occurred!")
         # Example: reduce a random material by 20%
         # self.company.inventory['iron'] -= 10 
 
     def surplus(self):
-        print("📈 VUCK: A surplus! Resources are flooding in.")
+        print("A surplus! Resources are flooding in.")
         # Logic for 'increase production' goes here
 
     def market_crash(self):
-        print("📉 VUCK: GLOBAL MARKET CRASH!")
+        print("GLOBAL MARKET CRASH!")
         # Reduce company balance by a percentage
         self.company.balance *= 0.5
