@@ -21,8 +21,10 @@ class Random_event:
 
     def shortage(self):
         print("A shortage occurred!")
-        # Example: reduce a random material by 20%
-        # self.company.inventory['iron'] -= 10 
+        # materials = somehow get the unlocked materials
+        # chosen_material = random.choice(materials)
+        # amount = random.randint(self.company.inventory[chosen_material])
+        # self.company.inventory[chosen_material] -= amount
 
     def surplus(self):
         print("A surplus! Resources are flooding in.")
