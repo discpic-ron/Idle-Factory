@@ -38,3 +38,9 @@ class offlineProgress:
 
       earnings = round(total_output * 2)  # $2 per unit
       return earnings
+      
+  def saveGame(self,manager_item,filename="save.json"):
+    pass
+    
+  def loadGame(self,filename="save.json"):
+    pass
