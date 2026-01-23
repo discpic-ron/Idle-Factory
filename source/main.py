@@ -11,7 +11,6 @@ screen = pygame.display.set_mode((800, 600))
 pygame.display.set_caption("Factory Sim")
 clock = pygame.time.Clock()
 
-
 # Constants
 running = True
 state = "main"
@@ -191,6 +190,7 @@ def handle_card_click(item, card_rect):
             else:
                 actions = [("Cancel", close_context_menu)]
             open_context_menu(item, event.pos, actions)
+            
 # Arrow System
 def rotate_point(x, y, angle):
   rad = math.radians(angle)
@@ -224,12 +224,12 @@ back_btn = Button(20, 20, 100, 40, "Back", back_action)
 workers_btn = Button(350, 400, 120, 40, "Workers", workers_tab)
 machines_btn = Button(350, 300, 120, 40, "Hardware", machines_tab)
 upgrades_btn = Button(350, 200, 120, 40, "Upgrades", upgrades_tab)
-shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
+shop_open_btn = Button(800 - 120, 100, 100, 50, "Shop", openShop)
 
+shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
 worker_shop_buttons = [back_btn]
 machines_shop_buttons = [back_btn]
 upgrade_buttons = [back_btn]
-shop_open_btn = Button(800 - 120, 100, 100, 50, "Shop", openShop)
 
 # Example content
 Hardware("Workbench", "Allows crafting", cost=200)
