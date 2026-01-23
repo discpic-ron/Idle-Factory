@@ -227,17 +227,12 @@ while running:
             clicked_on_button = any(b.rect.collidepoint(mx, my) for b in context_menu_buttons)
             if not clicked_on_button:
                 close_context_menu()
-
-    # UPDATE
-    player.update()
-
     # DRAW
     screen.blit(background, (0, 0))
 
     if state == "main":
         drawGrid()
         draw_ui_bar()
-        player.draw(screen)
 
         money_rect = pygame.Rect(800 - 140, 10, 130, 40)
         pygame.draw.rect(screen, (100, 100, 100), money_rect, 0, 10)
