@@ -227,9 +227,6 @@ upgrades_btn = Button(350, 200, 120, 40, "Upgrades", upgrades_tab)
 shop_open_btn = Button(800 - 120, 100, 100, 50, "Shop", openShop)
 
 shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
-worker_shop_buttons = [back_btn]
-machines_shop_buttons = [back_btn]
-upgrade_buttons = [back_btn]
 
 # Example content
 Hardware("Workbench", "Allows crafting", cost=200)
@@ -245,30 +242,26 @@ while running:
             running = False
 
         if state == "main":
-            shop_open_btn.handle_event(event)
-
+          shop_open_btn.handle_event(event)
+          
         elif state == "shop":
-            for b in shop_buttons:
-                b.handle_event(event)
-
-        elif state == "worker shop":
-            for b in worker_shop_buttons:
-                b.handle_event(event)
-
-        elif state == "hardware shop":
-            for b in machines_shop_buttons:
-                b.handle_event(event)
-
-        elif state == "upgrades shop":
-            for b in upgrade_buttons:
-                b.handle_event(event)
+          for b in shop_buttons:
+            b.handle_event(event)
+            
+        elif state in ["worker shop","hardware shop","upgrades shop"]:
+          back_btn.handle_event(event)
 
         # Context menu click handling
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and context_menu_active:
+        if context_menu_active and event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = event.pos
-            clicked_on_button = any(b.rect.collidepoint(mx, my) for b in context_menu_buttons)
-            if not clicked_on_button:
-                close_context_menu()
+            clicked = False
+            for btn in context_menu_buttons:
+                if btn.rect.collidepoint(mx, my):
+                    btn.handle_event(event)  # Execute the action
+                    clicked = True
+                    break
+            if not clicked:
+                close_context_menu()  # Click outside → close
     # DRAW
     screen.blit(background, (0, 0))
 
@@ -286,31 +279,28 @@ while running:
         text = font_big.render("Shop", True, white)
         screen.blit(text, text.get_rect(center=(400, 100)))
         for b in shop_buttons:
-            b.draw(screen)
+          b.draw(screen)
 
     elif state == "worker shop":
         text = font_big.render("Human Resources", True, white)
         screen.blit(text, text.get_rect(center=(400, 100)))
         drawItems(Worker.registry, cols=3, start_x=50, start_y=200,font=font_small,color=white)
-        for b in worker_shop_buttons:
-            b.draw(screen)
 
     elif state == "hardware shop":
         text = font_big.render("Hardware Shop", True, white)
         screen.blit(text, text.get_rect(center=(400, 100)))
         drawItems(Hardware.registry, cols=3, start_x=50, start_y=200,font=font_small,color=white)
-        for b in machines_shop_buttons:
-            b.draw(screen)
 
     elif state == "upgrades shop":
         text = font_big.render("Upgrades", True, white)
         screen.blit(text, text.get_rect(center=(400, 100)))
         drawItems(Upgrade.registry, cols=3, start_x=50, start_y=200,font=font_small,color=white)
-        for b in upgrade_buttons:
-            b.draw(screen)
-
+            
+    if state in ["worker shop","hardware shop","upgrades shop"]:
+      back_btn.draw(screen)
+      
     if context_menu_active:
-        draw_context_menu()
+      draw_context_menu()
 
     pygame.display.flip()
     clock.tick(60)
