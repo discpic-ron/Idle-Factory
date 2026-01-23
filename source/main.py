@@ -1,18 +1,19 @@
 import pygame
+import math
 from player import Player
 from worker import Worker
 from button import Button
 from upgrades import Upgrade
 from hardware import Hardware
 
-# Screen constants
 pygame.init()
 screen = pygame.display.set_mode((800, 600))
 pygame.display.set_caption("Factory Sim")
 clock = pygame.time.Clock()
-running = True
 
-# State
+
+# Constants
+running = True
 state = "main"
 grid_size = 50
 map_width = 800 // grid_size
@@ -21,6 +22,16 @@ map_height = 600 // grid_size
 # Colors
 black = (0, 0, 0)
 white = (255, 255, 255)
+gold = (255,215,0)
+BASE_ARROW = [
+    (0, 0),      # Arrow tip
+    (-15, 20),
+    (-7, 20),
+    (-7, 40),
+    (7, 40),
+    (7, 20),
+    (15, 20)
+]
 
 # Fonts
 font_big = pygame.font.Font(None, 74)
@@ -38,36 +49,14 @@ context_menu_pos = (0, 0)
 context_menu_actions = []
 context_menu_buttons = []
 context_menu_target = None
-
+    
+# UI
 def drawGrid():
     for x in range(0, map_width * grid_size, grid_size):
         pygame.draw.line(screen, white, (x, 0), (x, map_height * grid_size))
     for y in range(0, map_height * grid_size, grid_size):
         pygame.draw.line(screen, white, (0, y), (map_width * grid_size, y))
-
-def openShop():
-    global state
-    state = "shop"
-
-def back_action():
-    global state
-    if state in ["upgrades shop", "worker shop", "hardware shop"]:
-        state = "shop"
-    else:
-        state = "main"
-
-def upgrades_tab():
-    global state
-    state = "upgrades shop"
-
-def workers_tab():
-    global state
-    state = "worker shop"
-
-def machines_tab():
-    global state
-    state = "hardware shop"
-
+        
 def open_context_menu(obj, pos, actions):
     global context_menu_active, context_menu_pos, context_menu_target
     global context_menu_actions, context_menu_buttons
@@ -122,6 +111,30 @@ def drawItems(items, cols, start_x, start_y, font,color,card_w=300, card_h=100, 
         pygame.draw.rect(screen, white, card_rect, 2, border_radius=8)
         item.draw_card(x, y, card_w, card_h, screen, font,color)
         handle_card_click(item, card_rect)
+        
+# Button Functionality
+def openShop():
+    global state
+    state = "shop"
+
+def back_action():
+    global state
+    if state in ["upgrades shop", "worker shop", "hardware shop"]:
+        state = "shop"
+    else:
+        state = "main"
+
+def upgrades_tab():
+    global state
+    state = "upgrades shop"
+
+def workers_tab():
+    global state
+    state = "worker shop"
+
+def machines_tab():
+    global state
+    state = "hardware shop"
 
 def buy_action(amount, name=None):
     global state
@@ -155,6 +168,7 @@ def buy_upgrade(upgrade):
     else:
         print("Not enough money or already purchased!")
 
+# Event Functions
 def handle_card_click(item, card_rect):
     global event, state
     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -177,7 +191,35 @@ def handle_card_click(item, card_rect):
             else:
                 actions = [("Cancel", close_context_menu)]
             open_context_menu(item, event.pos, actions)
+# Arrow System
+def rotate_point(x, y, angle):
+  rad = math.radians(angle)
+  cos_a = math.cos(rad)
+  sin_a = math.sin(rad)
+  return (x * cos_a - y * sin_a, x * sin_a + y * cos_a)
+  
+def draw_arrow(surface, pos, angle, color, phase):
+    t = pygame.time.get_ticks() * 0.006 + phase
 
+    # Direction vector for sliding motion
+    rad = math.radians(angle - 90)
+
+    dx = math.cos(rad)
+    dy = math.sin(rad)
+
+    # Slide along direction
+    offset_x = dx * math.sin(t) * 10
+    offset_y = dy * math.sin(t) * 10
+
+    rotated = []
+    for px, py in BASE_ARROW:
+        rx, ry = rotate_point(px, py, angle)
+        rotated.append((pos[0] + rx + offset_x, pos[1] + ry + offset_y))
+
+    pygame.draw.polygon(surface, color, rotated)
+    pygame.draw.polygon(surface, WHITE, rotated, 2)
+
+# Buttons
 back_btn = Button(20, 20, 100, 40, "Back", back_action)
 workers_btn = Button(350, 400, 120, 40, "Workers", workers_tab)
 machines_btn = Button(350, 300, 120, 40, "Hardware", machines_tab)
