@@ -21,7 +21,7 @@ class Inventory:
         global font_small
         pygame.draw.rect(screen, (100,100,150), (x, y, w, h))
         screen.blit(font_small.render(f"{self.name} x{self.count}", True, white), (x+5, y+15))
-
+        
     def get_items(self):
         return list(self.items.values())
 
