@@ -27,6 +27,7 @@ BASE_ARROW = [
    (7, 20),
    (15, 20)
 ]
+
 # Tutorial Constants
 starter_cash_given = False  # prevents duplicate popups
 machine_bought = False
@@ -215,6 +216,8 @@ def buy_action(amount, name=None):
     if player.money >= amount:
       player.money -= amount
       manager.total_employees += 1
+       if tutorial == True:
+          worker_hired = True
       print("Hired a worker!")
     else:
       print("Not enough money to hire a worker!")
@@ -229,6 +232,8 @@ def buy_action(amount, name=None):
       manager.machinery[name] += 1
       player.inventory.add_item(name)
       print(f"Bought {name}!")
+      if tutorial == True:
+         machine_bought = True
     else:
       print(f"Not enough money to buy {name}!")
 
@@ -420,6 +425,9 @@ while running:
   
   elif current_step == 3:
     draw_arrow(screen, (650, 130), 90, gold, 3.7)
+     
+   if current_step >= len(dialogue_steps) - 1:
+      tutorial = False
       
   pygame.display.flip()
   clock.tick(60)
