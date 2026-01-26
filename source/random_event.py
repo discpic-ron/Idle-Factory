@@ -21,10 +21,10 @@ class Random_event:
 
     def shortage(self):
         print("A shortage occurred!")
-        # materials = somehow get the unlocked materials
-        # chosen_material = random.choice(materials)
-        # amount = random.randint(self.company.inventory[chosen_material])
-        # self.company.inventory[chosen_material] -= amount
+        materials = companyManager().unlocked_materials
+        chosen_material = random.choice(materials)
+        amount = random.randint(1,chosen_material)
+        self.company.inventory[chosen_material] -= amount
 
     def surplus(self):
         print("A surplus! Resources are flooding in.")
