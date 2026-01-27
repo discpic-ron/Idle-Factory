@@ -38,7 +38,7 @@ BASE_ARROW = [
 starter_cash_given = False  # prevents duplicate popups
 machine_bought = False
 machine_placed = False
-tutorial = False
+tutorial = True
 inventory_open = False
 selected_item_for_placement = None
 placement_mode = False
@@ -72,7 +72,7 @@ context_menu_target = None
 # Tutorial dialogue
 dialogue_steps = [
    "Welcome to your factory!",
-   "You've received starter cash! Use it in the machines section of the shop.",
+   "You've received starter cash! Use it in the hardware shop.",
    "Once you have the machine, place it somewhere.",
    "Go back into the shop and hire your first employee!",
    "Great, You're ready to begin your journey!"
@@ -130,11 +130,6 @@ def close_context_menu():
   context_menu_active = False
   context_menu_buttons = []
 
-def draw_ui_bar():
-  bar_width = 150
-  ui_rect = pygame.Rect(800 - bar_width, 0, bar_width, 600)
-  pygame.draw.rect(screen, (50, 50, 50), ui_rect)
-
 def drawItems(items, cols, start_x, start_y, font, color, card_w=300, card_h=100, gap=20):
   for i, item in enumerate(items):
     row = i // cols
@@ -145,7 +140,7 @@ def drawItems(items, cols, start_x, start_y, font, color, card_w=300, card_h=100
     pygame.draw.rect(screen, (70, 70, 70), card_rect, border_radius=8)
     pygame.draw.rect(screen, white, card_rect, 2, border_radius=8)
     item.draw_card(x, y, card_w, card_h, screen, font, color)
-    handle_card_click(item, card_rect)
+    handle_card(item, card_rect)
 
 def suffixNotation(number):
   suffixes = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi']
@@ -252,18 +247,17 @@ def buy_action(amount, name=None):
          machine_bought = True
     else:
       print(f"Not enough money to buy {name}!")
-
-def buy_upgrade(upgrade):
-  close_context_menu()
-  if upgrade.cost <= player.money and not upgrade.purchased:
-    player.money -= upgrade.cost
-    upgrade.affectsPlayer(player)
-    print(f"Purchased {upgrade.name}")
-  else:
-    print("Not enough money or already purchased!")
+      
+  elif state == "upgrades shop":
+    if upgrade.cost <= player.money and not upgrade.purchased:
+      player.money -= upgrade.cost
+      upgrade.affectsPlayer(player)
+      print(f"Purchased {upgrade.name}")
+    else:
+      print("Not enough money or already purchased!")
 
 # Event Functions
-def handle_card_click(item, card_rect):
+def handle_card(item, card_rect):
   global event, state
   if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
     if card_rect.collidepoint(event.pos):
@@ -328,7 +322,15 @@ def handle_placement_click(mouse_pos):
   global placement_mode, selected_item_for_placement, machine_placed
   if placement_mode == True:
     return
- 
+  
+def skip_tutorial(): 
+  global tutorial, current_step, current_text, full_text, char_index
+  tutorial = False 
+  current_step = len(dialogue_steps) - 1 
+  full_text = "" 
+  current_text = "" 
+  char_index = 0
+  
 # Clock functions
 def startDay(delta_time_seconds):
   global total_game_seconds, current_hour, current_minute
@@ -367,6 +369,7 @@ machines_btn = Button(350, 300, 120, 40, "Hardware", machines_tab)
 upgrades_btn = Button(350, 200, 120, 40, "Upgrades", upgrades_tab)
 shop_open_btn = Button(800 - 120, 100, 100, 50, "Shop", openShop)
 inventory_btn = Button(800 - 120, 170, 100, 50, "Inventory", openInventory)
+skip_tutorial_btn = Button(650, 410, 120, 40, "Skip", skip_tutorial)
 
 shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
 
@@ -396,6 +399,9 @@ while running:
     
     elif state in ["worker shop", "hardware shop", "upgrades shop","inventory"]:
       back_btn.handle_event(event)
+      
+    if tutorial == True:
+      skip_tutorial_btn.handle_event(event)
       
     if event.type == TYPE_EVENT:
       if char_index < len(full_text):
@@ -428,27 +434,9 @@ while running:
   screen.blit(background, (0, 0))
   if state == "main":
     drawGrid()
-    draw_ui_bar()
     drawClock(startDay,dt)
-    box_rect = pygame.Rect(50, 450, 700, 120)
-    pygame.draw.rect(screen, BOX_BG, box_rect)
-    pygame.draw.rect(screen, white, box_rect, 3)
-
-    lines = wrap_text(current_text, ui_font, 660)
-    y = box_rect.y + 15
-    for line in lines:
-      surf = ui_font.render(line, True, white)
-      screen.blit(surf, (box_rect.x + 15, y))
-      y += 25
-
-    if char_index >= len(full_text):
-      prompt = ui_font.render("[ SPACE ]", True, HIGHLIGHT)
-      screen.blit(prompt, (box_rect.right - 120, box_rect.bottom - 35))
-
-    if starter_cash_given == True:
-      draw_popups(screen, dt)
-      player.money = 500
-
+    ui_rect = pygame.Rect(650, 0, 150, 600)
+    pygame.draw.rect(screen, (50, 50, 50), ui_rect) 
     money_rect = pygame.Rect(800 - 140, 10, 130, 40)
     pygame.draw.rect(screen, (100, 100, 100), money_rect, 0, 10)
     money_text = font_small.render(f"Money: {player.money}", True, (0, 0, 0))
@@ -491,15 +479,43 @@ while running:
   if current_step == 1 and state == "main":
     draw_arrow(screen,(650,130),90,gold,3.7)
      
-  elif current_step == 2 and state == "shop":
+  elif current_step == 1 and state == "shop":
     draw_arrow(screen, (330, 320), 90, gold, 3.7)
  
-  elif current_step == 3:
+  elif current_step == 3 and state == "main":
     draw_arrow(screen, (650, 130), 90, gold, 3.7)
+  
+  elif current_step == 3 and state == "shop":
+    draw_arrow(screen,(330,400),90,gold,3.7)
      
   if current_step >= len(dialogue_steps) - 1:
     tutorial = False
-     
+    full_text = dialogue_steps[current_step] 
+    current_text = "" 
+    char_index = 0
+    
+  if tutorial == True:
+    box_rect = pygame.Rect(50, 450, 700, 120)
+    pygame.draw.rect(screen, BOX_BG, box_rect)
+    pygame.draw.rect(screen, white, box_rect, 3)
+    lines = wrap_text(current_text, ui_font, 660)
+    y = box_rect.y + 15
+    for line in lines:
+      surf = ui_font.render(line, True, white)
+      screen.blit(surf, (box_rect.x + 15, y))
+      y += 25
+  
+    if char_index >= len(full_text):
+      prompt = ui_font.render("[ SPACE ]", True, HIGHLIGHT)
+      screen.blit(prompt, (box_rect.right - 120, box_rect.bottom - 35))
+  
+    if starter_cash_given == True:
+      draw_popups(screen, dt)
+      player.money = 500
+      
+  if tutorial == True and current_step in [0,1]:
+    skip_tutorial_btn.draw(screen)
+    
   pygame.display.flip()
   clock.tick(60)
 pygame.quit()
