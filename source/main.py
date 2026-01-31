@@ -6,6 +6,7 @@ from button import Button
 from upgrades import Upgrade
 from hardware import Hardware
 from manager import companyManager
+from inventory import Inventory
 
 pygame.init()
 screen = pygame.display.set_mode((800, 600))
@@ -40,8 +41,9 @@ machine_bought = False
 machine_placed = False
 tutorial = True
 inventory_open = False
-selected_item_for_placement = None
+selected_item = None
 placement_mode = False
+worker_hired = False
 
 # Colors
 black = (0, 0, 0)
@@ -50,6 +52,7 @@ gold = (255, 215, 0)
 dark_gray = (50, 50, 50)
 BOX_BG = (30, 30, 30)
 HIGHLIGHT = (200, 200, 50)
+green = (0,255,0)
 
 # Fonts
 font_big = pygame.font.Font(None, 74)
@@ -219,17 +222,30 @@ def machines_tab():
 def openInventory():
   global state
   state = "inventory"
- 
-def buy_action(amount, name=None):
+def place_item():
   global state
+  if state == "main" and placement_mode == True:
+    if event.type == pygame.MOUSEBUTTONDOWN:
+      if placement_mode == True and grid_pos:
+          gx, gy = grid_pos
+          item = grid[gy][gx]
+          if item is not None:
+            select_item(item)  # select the placed item
+          else:
+            select_item(None)  # clear if empty
+          if grid[gy][gx] is None:
+            grid[gy][gx] = selected_item
+            
+def buy_action(amount, name=None,hardware_obj=None):
+  global state,machine_bought
   close_context_menu()
   if state == "worker shop":
     if player.money >= amount:
       player.money -= amount
       manager.total_employees += 1
+      print("Hired a worker!")
       if tutorial == True:
         worker_hired = True
-      print("Hired a worker!")
     else:
       print("Not enough money to hire a worker!")
 
@@ -241,7 +257,7 @@ def buy_action(amount, name=None):
       if name not in manager.machinery:
         manager.machinery[name] = 0
       manager.machinery[name] += 1
-      player.inventory.add_item(name)
+      player_inventory.add_item(name,hardware_obj)
       print(f"Bought {name}!")
       if tutorial == True:
          machine_bought = True
@@ -268,13 +284,18 @@ def handle_card(item, card_rect):
         ]
       elif state == "hardware shop" and isinstance(item, Hardware):
         actions = [
-          (f"Buy (${item.cost})", lambda h=item: buy_action(h.cost, h.name)),
+          (f"Buy (${item.cost})", lambda h=item: buy_action(h.cost, h.name,hardware_obj=h)),
           ("Cancel", close_context_menu)
         ]
       elif state == "upgrades shop" and isinstance(item, Upgrade):
         actions = [
-          (f"Buy (${item.cost})", lambda u=item: buy_upgrade(u)),
+          (f"Buy (${item.cost})", lambda u=item: buy_action(u.cost, u.name)),
           ("Cancel", close_context_menu)
+        ]
+      elif state == "inventory": 
+        actions = [
+            ("Place Item", place_item()),
+            ("Cancel", close_context_menu)
         ]
       else:
         actions = [("Cancel", close_context_menu)]
@@ -313,17 +334,20 @@ def open_inventory():
   inventory_open = True
  
 def close_inventory():
-  global inventory_open, placement_mode, selected_item_for_placement
+  global inventory_open, placement_mode, selected_item
   inventory_open = False
   placement_mode = True
-  selected_item_for_placement = None
- 
-def handle_placement_click(mouse_pos):
-  global placement_mode, selected_item_for_placement, machine_placed
-  if placement_mode == True:
-    return
+  selected_item = None
   
-def skip_tutorial(): 
+def select_item(item_obj):
+  global selected_item
+  selected_item = item_obj
+  if selected_item:
+    print(f"Selected: {selected_item.name if hasattr(selected_item, 'name') else 'Unknown'}")
+  else:
+    print("Selection cleared")
+    
+def skip_tutorial():
   global tutorial, current_step, current_text, full_text, char_index
   tutorial = False 
   current_step = len(dialogue_steps) - 1 
@@ -362,6 +386,28 @@ def drawClock(start_day,dt):
   screen.blit(current_time_surface, (2, 0))
   screen.blit(day_surface, (2, 32))
   
+# placement system
+def draw_placed_items():
+  for y in range(map_height):
+    for x in range(map_width):
+      tile = grid[y][x]
+      if tile:
+        pygame.draw.rect(screen, green,(x * 51, y * 51, 48, 48))
+        
+def world_to_grid(mx, my):
+    gx, gy = mx // grid_size, my // grid_size
+    if 0 <= gx < map_width and 0 <= gy < map_height:
+        return gx, gy
+    return None
+    
+def select_item(item_obj):
+  global selected_item
+  selected_item = item_obj
+  if selected_item:
+    print(f"Selected: {selected_item.name if hasattr(selected_item, 'name') else 'Unknown'}")
+  else:
+    print("Selection cleared")
+    
 # Buttons
 back_btn = Button(20, 20, 100, 40, "Back", back_action)
 workers_btn = Button(350, 400, 120, 40, "Workers", workers_tab)
@@ -380,11 +426,15 @@ for _ in range(5):
   Worker()
 manager = companyManager()
 player = Player()
+player_inventory = Inventory()
 notation = suffixNotation(player.money)
 player.money = 0
 
 while running:
   dt = clock.get_time() / 1000
+  mx, my = pygame.mouse.get_pos()
+  grid_pos = world_to_grid(mx, my)
+  
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
       running = False
@@ -421,7 +471,6 @@ while running:
 
     # Context menu click handling
     if context_menu_active and event.type == pygame.MOUSEBUTTONDOWN:
-      mx, my = event.pos
       clicked = False
       for btn in context_menu_buttons:
         if btn.rect.collidepoint(mx, my):
@@ -430,7 +479,9 @@ while running:
           break
       if not clicked:
         close_context_menu()  # Click outside → close
-
+        
+    place_item()
+    
   screen.blit(background, (0, 0))
   if state == "main":
     drawGrid()
@@ -443,7 +494,14 @@ while running:
     screen.blit(money_text, (800 - 135, 15))
     shop_open_btn.draw(screen)
     inventory_btn.draw(screen)
-
+    if placement_mode == True:
+      draw_placed_items()
+      if grid_pos:
+        gx, gy = grid_pos
+        ghost = pygame.Surface((48, 48), pygame.SRCALPHA)
+        ghost.fill((*green, 120))
+        screen.blit(ghost, (gx * 51, gy * 51))
+        
   elif state == "shop":
     text = font_big.render("Shop", True, white)
     screen.blit(text, text.get_rect(center=(400, 100)))
@@ -468,7 +526,8 @@ while running:
   elif state == "inventory":
     text = font_big.render("Inventory", True, white)
     screen.blit(text, text.get_rect(center=(400, 100)))
-    
+    drawItems(player_inventory.get_items(), cols=3, start_x=50, start_y=200, font=font_small, color=white)
+
   if state in ["worker shop", "hardware shop", "upgrades shop","inventory"]:
     back_btn.draw(screen)
 
@@ -486,7 +545,7 @@ while running:
     draw_arrow(screen, (650, 130), 90, gold, 3.7)
   
   elif current_step == 3 and state == "shop":
-    draw_arrow(screen,(330,400),90,gold,3.7)
+    draw_arrow(screen,(330,420),90,gold,3.7)
      
   if current_step >= len(dialogue_steps) - 1:
     tutorial = False
