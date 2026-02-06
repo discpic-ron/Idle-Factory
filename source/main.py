@@ -7,6 +7,7 @@ from upgrades import Upgrade
 from hardware import Hardware
 from manager import companyManager
 from inventory import Inventory
+from notification import Notification
 
 pygame.init()
 screen = pygame.display.set_mode((800, 600))
@@ -52,7 +53,8 @@ gold = (255, 215, 0)
 dark_gray = (50, 50, 50)
 BOX_BG = (30, 30, 30)
 HIGHLIGHT = (200, 200, 50)
-green = (0,255,0)
+green = (0, 255, 0)
+red = (255, 0, 0)
 
 # Fonts
 font_big = pygame.font.Font(None, 74)
@@ -222,6 +224,7 @@ def machines_tab():
 def openInventory():
   global state
   state = "inventory"
+   
 def place_item():
   global state
   if state == "main" and placement_mode == True:
@@ -243,6 +246,7 @@ def buy_action(amount, name=None,hardware_obj=None):
     if player.money >= amount:
       player.money -= amount
       manager.total_employees += 1
+      Notification.add(f"Bought Worker!",True,green)
       print("Hired a worker!")
       if tutorial == True:
         worker_hired = True
@@ -257,6 +261,7 @@ def buy_action(amount, name=None,hardware_obj=None):
       if name not in manager.machinery:
         manager.machinery[name] = 0
       manager.machinery[name] += 1
+      Notification.add(f"Bought machine!",True,green)
       player_inventory.add_item(name,hardware_obj)
       print(f"Bought {name}!")
       if tutorial == True:
@@ -268,10 +273,14 @@ def buy_action(amount, name=None,hardware_obj=None):
     if upgrade.cost <= player.money and not upgrade.purchased:
       player.money -= upgrade.cost
       upgrade.affectsPlayer(player)
+      Notification.add(f"Bought upgrade!",True,green)
       print(f"Purchased {upgrade.name}")
     else:
       print("Not enough money or already purchased!")
-
+       
+def sell_action():
+   pass
+   
 # Event Functions
 def handle_card(item, card_rect):
   global event, state
@@ -481,7 +490,8 @@ while running:
         close_context_menu()  # Click outside → close
         
     place_item()
-    
+    Notification.update()
+     
   screen.blit(background, (0, 0))
   if state == "main":
     drawGrid()
