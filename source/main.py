@@ -35,6 +35,7 @@ BASE_ARROW = [
    (7, 20),
    (15, 20)
 ]
+grid = [[None for _ in range(map_width)] for _ in range(map_height)]
 
 # Tutorial Constants
 starter_cash_given = False  # prevents duplicate popups
@@ -97,7 +98,13 @@ def drawGrid():
     pygame.draw.line(screen, dark_gray, (x, 0), (x, map_height * 50))
   for y in range(0, map_height * 50, 50):
     pygame.draw.line(screen, dark_gray, (0, y), (map_width * 50, y))
-
+    
+def get_coords(mouse_pos):
+    mx, my = mouse_pos
+    grid_x = mx // grid_size
+    grid_y = my // grid_size
+    return grid_x, grid_y
+    
 def open_context_menu(obj, pos, actions):
    global context_menu_active, context_menu_pos, context_menu_target, context_menu_actions, context_menu_buttons
    context_menu_active = True
@@ -226,19 +233,26 @@ def openInventory():
   state = "inventory"
    
 def place_item():
-  global state
-  if state == "main" and placement_mode == True:
+  global placement_mode, selected_item
+  if state == "main" and placement_mode and selected_item:
     if event.type == pygame.MOUSEBUTTONDOWN:
-      if placement_mode == True and grid_pos:
+      if grid_pos: # grid_pos is calculated in your main loop
           gx, gy = grid_pos
-          item = grid[gy][gx]
-          if item is not None:
-            select_item(item)  # select the placed item
+          if grid[gy][gx] is None: # Check if the tile is empty
+            grid[gy][gx] = selected_item # Drop the item into the grid list
+            placement_mode = False       # Stop placing
+            selected_item = None         # Clear our hand
+            print(f"{selected_item} has been placed!")
           else:
-            select_item(None)  # clear if empty
-          if grid[gy][gx] is None:
-            grid[gy][gx] = selected_item
+            print("Space Occupied!")
             
+def start_placement(item_obj):
+  global state, placement_mode, selected_item
+  selected_item = item_obj  
+  state = "main"           
+  placement_mode = True
+  close_context_menu()
+  
 def buy_action(amount, name=None,hardware_obj=None):
   global state,machine_bought
   close_context_menu()
@@ -246,7 +260,7 @@ def buy_action(amount, name=None,hardware_obj=None):
     if player.money >= amount:
       player.money -= amount
       manager.total_employees += 1
-      Notification.add(f"Bought Worker!",True,green)
+      notifier.add(f"Bought Worker!",green,font_small)
       print("Hired a worker!")
       if tutorial == True:
         worker_hired = True
@@ -261,11 +275,11 @@ def buy_action(amount, name=None,hardware_obj=None):
       if name not in manager.machinery:
         manager.machinery[name] = 0
       manager.machinery[name] += 1
-      Notification.add(f"Bought machine!",True,green)
+      notifier.add(f"Bought machine!",green,font_small)
       player_inventory.add_item(name,hardware_obj)
       print(f"Bought {name}!")
       if tutorial == True:
-         machine_bought = True
+        machine_bought = True
     else:
       print(f"Not enough money to buy {name}!")
       
@@ -273,7 +287,7 @@ def buy_action(amount, name=None,hardware_obj=None):
     if upgrade.cost <= player.money and not upgrade.purchased:
       player.money -= upgrade.cost
       upgrade.affectsPlayer(player)
-      Notification.add(f"Bought upgrade!",True,green)
+      notifier.add(f"Bought upgrade!",green,font_small)
       print(f"Purchased {upgrade.name}")
     else:
       print("Not enough money or already purchased!")
@@ -303,7 +317,7 @@ def handle_card(item, card_rect):
         ]
       elif state == "inventory": 
         actions = [
-            ("Place Item", place_item()),
+            ("Place Item",lambda i=item: start_placement(i)),
             ("Cancel", close_context_menu)
         ]
       else:
@@ -401,8 +415,10 @@ def draw_placed_items():
     for x in range(map_width):
       tile = grid[y][x]
       if tile:
-        pygame.draw.rect(screen, green,(x * 51, y * 51, 48, 48))
-        
+        rect = pygame.Rect(x * grid_size, y * grid_size, grid_size, grid_size)
+        pygame.draw.rect(screen, green, rect.inflate(-4, -4)) # Slightly smaller than cell
+        pygame.draw.rect(screen, white, rect.inflate(-4, -4), 1)
+
 def world_to_grid(mx, my):
     gx, gy = mx // grid_size, my // grid_size
     if 0 <= gx < map_width and 0 <= gy < map_height:
@@ -435,6 +451,7 @@ for _ in range(5):
   Worker()
 manager = companyManager()
 player = Player()
+notifier = Notification()
 player_inventory = Inventory()
 notation = suffixNotation(player.money)
 player.money = 0
@@ -489,13 +506,16 @@ while running:
       if not clicked:
         close_context_menu()  # Click outside → close
         
-    place_item()
-    Notification.update()
+    if placement_mode:
+      place_item()
+      
+    notifier.update()
      
   screen.blit(background, (0, 0))
   if state == "main":
     drawGrid()
     drawClock(startDay,dt)
+    draw_placed_items()
     ui_rect = pygame.Rect(650, 0, 150, 600)
     pygame.draw.rect(screen, (50, 50, 50), ui_rect) 
     money_rect = pygame.Rect(800 - 140, 10, 130, 40)
@@ -505,7 +525,6 @@ while running:
     shop_open_btn.draw(screen)
     inventory_btn.draw(screen)
     if placement_mode == True:
-      draw_placed_items()
       if grid_pos:
         gx, gy = grid_pos
         ghost = pygame.Surface((48, 48), pygame.SRCALPHA)
