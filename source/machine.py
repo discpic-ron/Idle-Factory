@@ -19,7 +19,7 @@ class machine:
       self.complete_craft()
       
   def can_start(self):
-    if Recipe.has_ingridents() == True:
+    if Recipe.can_afford() == True:
       return True
     else:
       return False
