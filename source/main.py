@@ -3,10 +3,9 @@ import math
 from player import Player
 from worker import Worker
 from button import Button
-from upgrades import Upgrade
 from hardware import Hardware
-from manager import companyManager
 from inventory import Inventory
+from manager import companyManager
 from notification import Notification
 
 pygame.init()
@@ -38,7 +37,7 @@ BASE_ARROW = [
 grid = [[None for _ in range(map_width)] for _ in range(map_height)]
 
 # Tutorial Constants
-starter_cash_given = False  # prevents duplicate popups
+starter_cash_given = False
 machine_bought = False
 machine_placed = False
 tutorial = True
@@ -88,7 +87,7 @@ current_step = 0
 full_text = dialogue_steps[current_step]
 current_text = ""
 char_index = 0
-typing_speed = 40  # ms per character
+typing_speed = 40
 TYPE_EVENT = pygame.USEREVENT + 1
 pygame.time.set_timer(TYPE_EVENT, typing_speed)
 
@@ -96,20 +95,26 @@ def unclock(item):
   if player.money == item.cost:
     item.unlocked = True
     return item
-    
+
 # UI
 def drawGrid():
   for x in range(0, map_width * 50, 50):
     pygame.draw.line(screen, dark_gray, (x, 0), (x, map_height * 50))
   for y in range(0, map_height * 50, 50):
     pygame.draw.line(screen, dark_gray, (0, y), (map_width * 50, y))
-    
+
 def get_coords(mouse_pos):
     mx, my = mouse_pos
     grid_x = mx // grid_size
     grid_y = my // grid_size
     return grid_x, grid_y
-    
+def draw_workers():
+    for i in range(manager.total_employees):
+      wx = 50 + (i * 40)
+      wy = 550
+      pygame.draw.circle(screen, (100, 150, 255), (wx, wy), 15)
+      pygame.draw.circle(screen, white, (wx, wy), 15, 2)
+      
 def open_context_menu(obj, pos, actions):
    global context_menu_active, context_menu_pos, context_menu_target, context_menu_actions, context_menu_buttons
    context_menu_active = True
@@ -190,7 +195,7 @@ def draw_popups(screen, dt):
     temp_surf.blit(text_surf, (0, 0))
     temp_surf.set_alpha(int(popup['alpha']))
     screen.blit(temp_surf, (popup['x'], popup['y']))
-   
+
 def wrap_text(text, font, max_width):
   words = text.split(" ")
   lines = []
@@ -213,17 +218,13 @@ def openShop():
 
 def back_action():
   global state
-  if state in ["upgrades shop", "worker shop", "hardware shop"]:
+  if state in ["worker shop", "hardware shop"]:
     state = "shop"
   else:
     state = "main"
 
   if state == "inventory":
     state = "main"
-  
-def upgrades_tab():
-  global state
-  state = "upgrades shop"
 
 def workers_tab():
   global state
@@ -232,30 +233,43 @@ def workers_tab():
 def machines_tab():
   global state
   state = "hardware shop"
- 
+
 def openInventory():
   global state
   state = "inventory"
-   
-def place_item():
-  global placement_mode, selected_item
-  if state == "main" and placement_mode == True and selected_item:
-    if event.type == pygame.MOUSEBUTTONDOWN:
-      if grid_pos: # grid_pos is calculated in your main loop
-          gx, gy = grid_pos
-          if grid[gy][gx] is None: # Check if the tile is empty
-            grid[gy][gx] = selected_item # Drop the item into the grid list
-            placement_mode = True       # Stop placing
-            if placement_mode == False:
-              selected_item = None         # Clear our hand
-            print(f"{selected_item} has been placed!")
-          else:
+
+def openManager():
+  global state
+  state = "worker management"
+  
+def place_item(event, grid_pos):
+    global placement_mode, selected_item
+
+    # Check if we are actually in a state to place things
+    if state != "main" or not placement_mode or selected_item is None:
+        return
+
+    # Use the event type passed from the main loop (MOUSEBUTTONDOWN)
+    if event.type == pygame.MOUSEBUTTONDOWN and grid_pos:
+        gx, gy = grid_pos
+        if grid[gy][gx] is None:
+            # We use the hardware object stored in the inventory
+            item_name = selected_item.name
+            grid[gy][gx] = selected_item
+            player_inventory.remove_item(item_name)
+
+            print(f"{item_name} has been placed at {gx}, {gy}!")
+
+            # Reset mode
+            selected_item = None
+            placement_mode = False
+        else:
             print("Space Occupied!")
             
 def start_placement(item_obj):
-  global state, placement_mode, selected_item
-  selected_item = item_obj  
-  state = "main"           
+  global state, placement_mode, selected_item,grid_pos
+  selected_item = item_obj
+  state = "main"
   placement_mode = True
   close_context_menu()
 
@@ -288,16 +302,7 @@ def buy_action(amount, name=None,hardware_obj=None):
         machine_bought = True
     else:
       print(f"Not enough money to buy {name}!")
-      
-  elif state == "upgrades shop":
-    if upgrade.cost <= player.money and not upgrade.purchased:
-      player.money -= upgrade.cost
-      upgrade.affectsPlayer(player)
-      notifier.add(f"Bought upgrade!",white,font_small)
-      print(f"Purchased {upgrade.name}")
-    else:
-      print("Not enough money or already purchased!")
-       
+
 # Event Functions
 def handle_card(item, card_rect):
   global event, state
@@ -313,12 +318,7 @@ def handle_card(item, card_rect):
           (f"Buy (${item.cost})", lambda h=item: buy_action(h.cost, h.name,hardware_obj=h)),
           ("Cancel", close_context_menu)
         ]
-      elif state == "upgrades shop" and isinstance(item, Upgrade):
-        actions = [
-          (f"Buy (${item.cost})", lambda u=item: buy_action(u.cost, u.name)),
-          ("Cancel", close_context_menu)
-        ]
-      elif state == "inventory": 
+      elif state == "inventory":
         actions = [
             ("Place Item",lambda i=item: start_placement(i)),
             ("Cancel", close_context_menu)
@@ -337,12 +337,10 @@ def rotate_point(x, y, angle):
 def draw_arrow(surface, pos, angle, color, phase):
   t = pygame.time.get_ticks() * 0.006 + phase
 
-  # direction vector for sliding motion
   rad = math.radians(angle - 90)
   dx = math.cos(rad)
   dy = math.sin(rad)
 
-  # slide along direction
   offset_x = dx * math.sin(t) * 10
   offset_y = dy * math.sin(t) * 10
 
@@ -353,18 +351,18 @@ def draw_arrow(surface, pos, angle, color, phase):
 
   pygame.draw.polygon(surface, color, rotated)
   pygame.draw.polygon(surface, white, rotated, 2)
- 
+
 # Tutorial functions
 def open_inventory():
   global inventory_open
   inventory_open = True
- 
+
 def close_inventory():
   global inventory_open, placement_mode, selected_item
   inventory_open = False
   placement_mode = True
   selected_item = None
-  
+
 def select_item(item_obj):
   global selected_item
   selected_item = item_obj
@@ -372,22 +370,21 @@ def select_item(item_obj):
     print(f"Selected: {selected_item.name if hasattr(selected_item, 'name') else 'Unknown'}")
   else:
     print("Selection cleared")
-    
+
 def skip_tutorial():
   global tutorial, current_step, current_text, full_text, char_index,player
-  tutorial = False 
+  tutorial = False
   starter_cash_given = True
   player.money = 500
-  current_step = len(dialogue_steps) - 1 
-  full_text = "" 
-  current_text = "" 
+  current_step = len(dialogue_steps) - 1
+  full_text = ""
+  current_text = ""
   char_index = 0
-  
+
 # Clock functions
 def startDay(delta_time_seconds):
   global total_game_seconds, current_hour, current_minute
-  
-  # advance time and return formatted string
+
   total_game_seconds += delta_time_seconds * time_scale
   seconds_today = total_game_seconds % 86400
   current_hour = int(seconds_today // 3600) % 24
@@ -398,22 +395,21 @@ def startDay(delta_time_seconds):
 
 def endDay():
   global day, shift_ended_flag, current_hour, current_minute
-  if current_hour == 21 and current_minute == 0: # check if shift ended and increment day
+  if current_hour == 21 and current_minute == 0:
     if not shift_ended:
       day += 1
       shift_ended_flag = True
       print(f"--- Shift ended. Starting Day {day}. ---")
   else:
     shift_ended_flag = False
-    
+
 def drawClock(start_day,dt):
-  # call the endDay function and get the updated display string
   display_time_string = start_day(dt)
   current_time_surface = font_small.render(f"Time: {display_time_string}", True, white)
   day_surface = font_small.render(f"Day: {day}", True, white)
   screen.blit(current_time_surface, (2, 0))
   screen.blit(day_surface, (2, 32))
-  
+
 # placement system
 def draw_placed_items():
   for y in range(map_height):
@@ -421,7 +417,7 @@ def draw_placed_items():
       tile = grid[y][x]
       if tile:
         rect = pygame.Rect(x * grid_size, y * grid_size, grid_size, grid_size)
-        pygame.draw.rect(screen, green, rect.inflate(-4, -4)) # Slightly smaller than cell
+        pygame.draw.rect(screen, green, rect.inflate(-4, -4))
         pygame.draw.rect(screen, white, rect.inflate(-4, -4), 1)
 
 def world_to_grid(mx, my):
@@ -429,7 +425,7 @@ def world_to_grid(mx, my):
     if 0 <= gx < map_width and 0 <= gy < map_height:
         return gx, gy
     return None
-    
+
 def select_item(item_obj):
   global selected_item
   selected_item = item_obj
@@ -437,22 +433,21 @@ def select_item(item_obj):
     print(f"Selected: {selected_item.name if hasattr(selected_item, 'name') else 'Unknown'}")
   else:
     print("Selection cleared")
-    
+
 # Buttons
 back_btn = Button(20, 20, 100, 40, "Back", back_action)
 workers_btn = Button(350, 400, 120, 40, "Workers", workers_tab)
 machines_btn = Button(350, 300, 120, 40, "Hardware", machines_tab)
-upgrades_btn = Button(350, 200, 120, 40, "Upgrades", upgrades_tab)
 shop_open_btn = Button(800 - 120, 100, 100, 50, "Shop", openShop)
 inventory_btn = Button(800 - 120, 170, 100, 50, "Inventory", openInventory)
 skip_tutorial_btn = Button(650, 410, 120, 40, "Skip", skip_tutorial)
+manage_staff_btn = Button(350, 500, 150, 40, "Manage Staff", lambda: openManager("worker management"))
 
-shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
+shop_buttons = [back_btn, workers_btn, machines_btn]
 
-# Example content
 Hardware("Workbench", "Allows crafting", cost=200).unlocked = True
+Hardware("Conveyor belt","moves stuff",cost=50).unlocked = True
 
-upgrade_player_speed = Upgrade("Move faster", "Player moves faster", cost=50, affect_player=True, effect_value=0.2)
 for _ in range(5):
   Worker()
 manager = companyManager()
@@ -466,7 +461,7 @@ while running:
   dt = clock.get_time() / 1000
   mx, my = pygame.mouse.get_pos()
   grid_pos = world_to_grid(mx, my)
-  
+
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
       running = False
@@ -474,17 +469,17 @@ while running:
     if state == "main":
       shop_open_btn.handle_event(event)
       inventory_btn.handle_event(event)
-     
+
     elif state == "shop":
       for b in shop_buttons:
         b.handle_event(event)
-    
-    elif state in ["worker shop", "hardware shop", "upgrades shop","inventory"]:
+
+    elif state in ["worker shop", "hardware shop","inventory"]:
       back_btn.handle_event(event)
-      
+
     if tutorial == True:
       skip_tutorial_btn.handle_event(event)
-      
+
     if event.type == TYPE_EVENT:
       if char_index < len(full_text):
         current_text += full_text[char_index]
@@ -492,126 +487,131 @@ while running:
 
     if event.type == pygame.KEYDOWN:
       if event.key == pygame.K_SPACE and char_index >= len(full_text):
-        if current_step < len(dialogue_steps) - 1:  # Advance to next step
+        if current_step < len(dialogue_steps) - 1:
           current_step += 1
           full_text = dialogue_steps[current_step]
           current_text = ""
           char_index = 0
-          if current_step == 1 and starter_cash_given == False:  # Trigger popup at step 1
-            create_popup(500, 400, 300)
-            starter_cash_given = True
-
-    # Context menu click handling
-    if context_menu_active and event.type == pygame.MOUSEBUTTONDOWN:
-      clicked = False
-      for btn in context_menu_buttons:
-        if btn.rect.collidepoint(mx, my):
-          btn.handle_event(event)  # Execute the action
-          clicked = True
-          break
-      if not clicked:
-        close_context_menu()  # Click outside → close
-        
-    if placement_mode: 
-      place_item()
-      
-    notifier.update()
-     
-  screen.blit(background, (0, 0))
-  if state == "main":
-    drawGrid()
-    drawClock(startDay,dt)
-    ui_rect = pygame.Rect(650, 0, 150, 600)
-    pygame.draw.rect(screen, (50, 50, 50), ui_rect) 
-    money_rect = pygame.Rect(800 - 140, 10, 130, 40)
-    pygame.draw.rect(screen, (100, 100, 100), money_rect, 0, 10)
-    money_text = font_small.render(f"Money: {player.money}", True, (0, 0, 0))
-    screen.blit(money_text, (800 - 135, 15))
-    shop_open_btn.draw(screen)
-    inventory_btn.draw(screen)
-    if placement_mode == True:
-      if grid_pos:
-        gx, gy = grid_pos
-        ghost = pygame.Surface((48, 48), pygame.SRCALPHA)
-        ghost.fill((*green, 120))
-        screen.blit(ghost, (gx * 51, gy * 51))
-        
-  elif state == "shop":
-    text = font_big.render("Shop", True, white)
-    screen.blit(text, text.get_rect(center=(400, 100)))
-    for b in shop_buttons:
-      b.draw(screen)
-
-  elif state == "worker shop":
-    text = font_big.render("Human Resources", True, white)
-    screen.blit(text, text.get_rect(center=(400, 100)))
-    drawItems(Worker.registry, cols=3, start_x=50, start_y=200, font=font_small, color=white)
-
-  elif state == "hardware shop":
-    text = font_big.render("Hardware Shop", True, white)
-    screen.blit(text, text.get_rect(center=(400, 100)))
-    drawItems(Hardware.registry, cols=3, start_x=50, start_y=200, font=font_small, color=white)
-
-  elif state == "upgrades shop":
-    text = font_big.render("Upgrades", True, white)
-    screen.blit(text, text.get_rect(center=(400, 100)))
-    drawItems(Upgrade.registry, cols=3, start_x=50, start_y=200, font=font_small, color=white)
+          
+    if event.type == pygame.MOUSEBUTTONDOWN:
+      mx, my = event.pos
+      grid_pos = world_to_grid(mx, my)
   
-  elif state == "inventory":
-    text = font_big.render("Inventory", True, white)
-    screen.blit(text, text.get_rect(center=(400, 100)))
-    drawItems(player_inventory.get_items(), cols=3, start_x=50, start_y=200, font=font_small, color=white)
-
-  if state in ["worker shop", "hardware shop", "upgrades shop","inventory"]:
+      if context_menu_active:
+          clicked = False
+          for btn in context_menu_buttons:
+              if btn.rect.collidepoint(mx, my):
+                  btn.handle_event(event)
+                  clicked = True
+                  break
+          if not clicked:
+              close_context_menu()
+      elif state == "main" and placement_mode == True:
+            place_item(event, grid_pos)
+    notifier.update() 
+    
+  screen.blit(background, (0, 0)) 
+  if state == "main": 
+    drawGrid() 
+    drawClock(startDay, dt) # Draw placed items
+    draw_placed_items()
+    draw_workers()
+    ui_rect = pygame.Rect(650, 0, 150, 600) 
+    pygame.draw.rect(screen, (50, 50, 50), ui_rect) 
+    money_rect = pygame.Rect(800 - 140, 10, 130, 40) 
+    pygame.draw.rect(screen, (100, 100, 100), money_rect, 0, 10) 
+    money_text = font_small.render(f"Money: {player.money}", True, (0, 0, 0)) 
+    screen.blit(money_text, (800 - 135, 15)) 
+    shop_open_btn.draw(screen) 
+    inventory_btn.draw(screen) 
+    
+  elif state == "shop": 
+    text = font_big.render("Shop", True, white) 
+    screen.blit(text, text.get_rect(center=(400, 100))) 
+    for b in shop_buttons: 
+      b.draw(screen) 
+      
+  elif state == "worker shop": 
+    text = font_big.render("Human Resources", True, white) 
+    screen.blit(text, text.get_rect(center=(400, 100))) 
+    drawItems(Worker.registry, cols=3, start_x=50, start_y=200, font=font_small, color=white) 
+    
+  elif state == "hardware shop": 
+    text = font_big.render("Hardware Shop", True, white) 
+    screen.blit(text, text.get_rect(center=(400, 100))) 
+    drawItems(Hardware.registry, cols=3, start_x=50, start_y=200, font=font_small, color=white)
+    
+  elif state == "inventory": 
+    text = font_big.render("Inventory", True, white) 
+    screen.blit(text, text.get_rect(center=(400, 100))) 
+    drawItems(player_inventory.get_items(), cols=3, start_x=50, start_y=200, font=font_small, color=white) 
+    
+  elif state == "worker management":
+    text = font_big.render("Staff Management", True, white)
+    screen.blit(text, text.get_rect(center=(400, 50)))
+    
+    # List hied workers
+    for i in range(manager.total_employees):
+        y_pos = 150 + (i * 60)
+        worker_rect = pygame.Rect(50, y_pos, 700, 50)
+        pygame.draw.rect(screen, (60, 60, 60), worker_rect, border_radius=5)
+        
+        name_text = font_small.render(f"Worker #{i+1}", True, white)
+        screen.blit(name_text, (70, y_pos + 10))
+        
+        # Assignment Button logic would go here
+        assign_btn = Button(500, y_pos + 5, 180, 40, "Assign Machine", lambda idx=i: open_assignment_menu(idx))
+        assign_btn.draw(screen)
+        
+  if state in ["worker shop", "hardware shop", "inventory"]: 
     back_btn.draw(screen)
     
-  if state in ["worker shop", "hardware shop", "upgrades shop","inventory","main"] and tutorial == False:
-    notifier.draw(screen,green)
+  if state in ["worker shop", "hardware shop", "inventory", "main"] and tutorial == False: 
+    notifier.draw(screen, green)
     
-  if context_menu_active:
+  if context_menu_active: 
     draw_context_menu()
-   
-  # tutorial steps
-  if current_step == 1 and state == "main":
-    draw_arrow(screen,(650,130),90,gold,3.7)
-     
-  elif current_step == 1 and state == "shop":
-    draw_arrow(screen, (330, 320), 90, gold, 3.7)
- 
-  elif current_step == 3 and state == "main":
-    draw_arrow(screen, (650, 130), 90, gold, 3.7)
-  
-  elif current_step == 3 and state == "shop":
-    draw_arrow(screen,(330,420),90,gold,3.7)
-     
-  if tutorial == True and current_step >= len(dialogue_steps) - 1:
-    tutorial = False
-    full_text = dialogue_steps[current_step] 
-    current_text = "" 
-    char_index = 0
-
-  if tutorial == True:
-    box_rect = pygame.Rect(50, 450, 700, 120)
-    pygame.draw.rect(screen, BOX_BG, box_rect)
-    pygame.draw.rect(screen, white, box_rect, 3)
-    lines = wrap_text(current_text, ui_font, 660)
-    y = box_rect.y + 15
-    for line in lines:
-      surf = ui_font.render(line, True, white)
-      screen.blit(surf, (box_rect.x + 15, y))
-      y += 25
-  
-    if char_index >= len(full_text):
-      prompt = ui_font.render("[ SPACE ]", True, HIGHLIGHT)
-      screen.blit(prompt, (box_rect.right - 120, box_rect.bottom - 35))
-  
-    if starter_cash_given == True:
-      draw_popups(screen, dt)
-      player.money = 500
-      
-  if tutorial == True and current_step in [0,1]:
-    skip_tutorial_btn.draw(screen)
     
-  pygame.display.flip()
-  clock.tick(60)
+  # Tutorial arrows 
+  if current_step == 1 and state == "main": 
+      draw_arrow(screen, (650, 130), 90, gold, 3.7) 
+  elif current_step == 1 and state == "shop": 
+    draw_arrow(screen, (330, 320), 90, gold, 3.7) 
+  elif current_step == 3 and state == "main": 
+    draw_arrow(screen, (650, 130), 90, gold, 3.7) 
+  elif current_step == 3 and state == "shop": 
+    draw_arrow(screen, (330, 420), 90, gold, 3.7) # Tutorial dialogue box 
+    
+  if tutorial == True: 
+    box_rect = pygame.Rect(50, 450, 700, 120) 
+    pygame.draw.rect(screen, BOX_BG, box_rect) 
+    pygame.draw.rect(screen, white, box_rect, 3) 
+    lines = wrap_text(current_text, ui_font, 660) 
+    y = box_rect.y + 15 
+    for line in lines: 
+      surf = ui_font.render(line, True, white) 
+      screen.blit(surf, (box_rect.x + 15, y)) 
+      y += 25 
+    if char_index >= len(full_text): 
+      prompt = ui_font.render("[ SPACE ]", True, HIGHLIGHT) 
+      screen.blit(prompt, (box_rect.right - 120, box_rect.bottom - 35)) 
+    if starter_cash_given == True: 
+      draw_popups(screen, dt) 
+      player.money = 500 
+      
+  if tutorial == True and current_step in [0, 1]: 
+    skip_tutorial_btn.draw(screen) 
+    
+  if placement_mode == True:
+    mx, my = pygame.mouse.get_pos()
+    grid_pos = world_to_grid(mx, my)
+    if grid_pos:
+        gx, gy = grid_pos
+        # Green ghost
+        ghost = pygame.Surface((grid_size, grid_size), pygame.SRCALPHA)
+        ghost.fill((*green, 140))  # semi-transparent
+        screen.blit(ghost, (gx * grid_size, gy * grid_size))
+    
+  pygame.display.flip() 
+  clock.tick(60) 
 pygame.quit()
