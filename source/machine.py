@@ -9,6 +9,10 @@ class machine:
     self.mpr = mpr # this is money per recipe
     
   def update(self,dt):
+    if self.assigned_worker is None:
+      self.is_working = False
+      return
+      
     if not self.is_working:
       if self.can_start():
         self.is_working = True
@@ -26,9 +30,11 @@ class machine:
     else:
       return False
       
-  def complete_craft(self):
+  def complete_craft(self,player):
     self.progress = 0
     self.is_working = False
+    player.money += self.mpr
     
-  def assign(self,x,y):
-    pass
+  def assign(self,grid,x,y):
+    if grid[x][y] == machine.name:
+      self.assigned_worker.name
