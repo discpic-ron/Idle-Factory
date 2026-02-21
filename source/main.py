@@ -92,6 +92,11 @@ typing_speed = 40  # ms per character
 TYPE_EVENT = pygame.USEREVENT + 1
 pygame.time.set_timer(TYPE_EVENT, typing_speed)
 
+def unclock(item):
+  if player.money == item.cost:
+    item.unlocked = True
+    return item
+    
 # UI
 def drawGrid():
   for x in range(0, map_width * 50, 50):
@@ -234,14 +239,15 @@ def openInventory():
    
 def place_item():
   global placement_mode, selected_item
-  if state == "main" and placement_mode and selected_item:
+  if state == "main" and placement_mode == True and selected_item:
     if event.type == pygame.MOUSEBUTTONDOWN:
       if grid_pos: # grid_pos is calculated in your main loop
           gx, gy = grid_pos
           if grid[gy][gx] is None: # Check if the tile is empty
             grid[gy][gx] = selected_item # Drop the item into the grid list
-            placement_mode = False       # Stop placing
-            selected_item = None         # Clear our hand
+            placement_mode = True       # Stop placing
+            if placement_mode == False:
+              selected_item = None         # Clear our hand
             print(f"{selected_item} has been placed!")
           else:
             print("Space Occupied!")
@@ -252,7 +258,7 @@ def start_placement(item_obj):
   state = "main"           
   placement_mode = True
   close_context_menu()
-  
+
 def buy_action(amount, name=None,hardware_obj=None):
   global state,machine_bought
   close_context_menu()
@@ -260,7 +266,7 @@ def buy_action(amount, name=None,hardware_obj=None):
     if player.money >= amount:
       player.money -= amount
       manager.total_employees += 1
-      notifier.add(f"Bought Worker!",green,font_small)
+      notifier.add(f"Bought Worker!",white,font_small)
       print("Hired a worker!")
       if tutorial == True:
         worker_hired = True
@@ -271,11 +277,11 @@ def buy_action(amount, name=None,hardware_obj=None):
     if player.money >= amount and name:
       player.money -= amount
       if not hasattr(player, "machinery"):
-        companyManager.machinery = {}
+        manager.machinery = {}
       if name not in manager.machinery:
         manager.machinery[name] = 0
       manager.machinery[name] += 1
-      notifier.add(f"Bought machine!",green,font_small)
+      notifier.add(f"Bought machine!",white,font_small)
       player_inventory.add_item(name,hardware_obj)
       print(f"Bought {name}!")
       if tutorial == True:
@@ -287,14 +293,11 @@ def buy_action(amount, name=None,hardware_obj=None):
     if upgrade.cost <= player.money and not upgrade.purchased:
       player.money -= upgrade.cost
       upgrade.affectsPlayer(player)
-      notifier.add(f"Bought upgrade!",green,font_small)
+      notifier.add(f"Bought upgrade!",white,font_small)
       print(f"Purchased {upgrade.name}")
     else:
       print("Not enough money or already purchased!")
        
-def sell_action():
-   pass
-   
 # Event Functions
 def handle_card(item, card_rect):
   global event, state
@@ -371,8 +374,10 @@ def select_item(item_obj):
     print("Selection cleared")
     
 def skip_tutorial():
-  global tutorial, current_step, current_text, full_text, char_index
+  global tutorial, current_step, current_text, full_text, char_index,player
   tutorial = False 
+  starter_cash_given = True
+  player.money = 500
   current_step = len(dialogue_steps) - 1 
   full_text = "" 
   current_text = "" 
@@ -445,7 +450,8 @@ skip_tutorial_btn = Button(650, 410, 120, 40, "Skip", skip_tutorial)
 shop_buttons = [back_btn, workers_btn, machines_btn, upgrades_btn]
 
 # Example content
-Hardware("Workbench", "Allows crafting", cost=200)
+Hardware("Workbench", "Allows crafting", cost=200).unlocked = True
+
 upgrade_player_speed = Upgrade("Move faster", "Player moves faster", cost=50, affect_player=True, effect_value=0.2)
 for _ in range(5):
   Worker()
@@ -506,7 +512,7 @@ while running:
       if not clicked:
         close_context_menu()  # Click outside → close
         
-    if placement_mode:
+    if placement_mode: 
       place_item()
       
     notifier.update()
@@ -515,7 +521,6 @@ while running:
   if state == "main":
     drawGrid()
     drawClock(startDay,dt)
-    draw_placed_items()
     ui_rect = pygame.Rect(650, 0, 150, 600)
     pygame.draw.rect(screen, (50, 50, 50), ui_rect) 
     money_rect = pygame.Rect(800 - 140, 10, 130, 40)
@@ -559,7 +564,10 @@ while running:
 
   if state in ["worker shop", "hardware shop", "upgrades shop","inventory"]:
     back_btn.draw(screen)
-
+    
+  if state in ["worker shop", "hardware shop", "upgrades shop","inventory","main"] and tutorial == False:
+    notifier.draw(screen,green)
+    
   if context_menu_active:
     draw_context_menu()
    
@@ -576,12 +584,12 @@ while running:
   elif current_step == 3 and state == "shop":
     draw_arrow(screen,(330,420),90,gold,3.7)
      
-  if current_step >= len(dialogue_steps) - 1:
+  if tutorial == True and current_step >= len(dialogue_steps) - 1:
     tutorial = False
     full_text = dialogue_steps[current_step] 
     current_text = "" 
     char_index = 0
-    
+
   if tutorial == True:
     box_rect = pygame.Rect(50, 450, 700, 120)
     pygame.draw.rect(screen, BOX_BG, box_rect)
