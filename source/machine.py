@@ -1,11 +1,12 @@
 from recipes import Recipe
 
 class machine:
-  def __init__(self,recipe,worker=None):
+  def __init__(self,recipe,mpr,worker=None):
     self.progress = 0
     self.recipe = recipe # this uses a dict
     self.is_working = False
     self.assigned_worker = worker
+    self.mpr = mpr # this is money per recipe
     
   def update(self,dt):
     if not self.is_working:
