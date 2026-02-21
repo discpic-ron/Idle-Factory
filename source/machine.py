@@ -1,10 +1,11 @@
 from recipes import Recipe
 
 class machine:
-  def __init__(self,recipe):
+  def __init__(self,recipe,worker=None):
     self.progress = 0
     self.recipe = recipe # this uses a dict
     self.is_working = False
+    self.assigned_worker = worker
     
   def update(self,dt):
     if not self.is_working:
@@ -27,3 +28,6 @@ class machine:
   def complete_craft(self):
     self.progress = 0
     self.is_working = False
+    
+  def assign(self,x,y):
+    pass
